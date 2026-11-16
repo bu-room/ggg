@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>와방 | 공인중개사 이하늘 - 자동 매물 접수 챗봇</title>
+
+  <!-- Pretendard 폰트 & Tailwind CSS & Phosphor Icons -->
+  <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Pretendard', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'] },
+          colors: {
+            brand: {
+              50: '#F0F9FF',
+              100: '#E0F2FE',
+              200: '#BAE6FD',
+              500: '#0EA5E9',
+              600: '#0284C7',
+              700: '#0369A1',
+            }
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    body {
+      background-color: #F4FAFF;
+      color: #0F172A;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* 스크롤바 숨김 */
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+    /* 말풍선 등장 애니메이션 */
+    @keyframes popIn {
+      0% { opacity: 0; transform: translateY(10px) scale(0.97); }
+      100% { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .msg-anim {
+      animation: popIn 0.28s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+
+    /* 타이핑 인디케이터 점 애니메이션 */
+    @keyframes bounceDot {
+      0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+      40% { transform: scale(1); opacity: 1; }
+    }
+    .typing-dot {
+      animation: bounceDot 1.2s infinite ease-in-out both;
+    }
+    .typing-dot:nth-child(1) { animation-delay: -0.32s; }
+    .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+  </style>
+</head>
+<body class="h-[100dvh] flex flex-col overflow-hidden">
+
+  <!-- ================= 설정 영역 (여기만 수정하세요) ================= -->
+  <script>
+    const CONFIG = {
+      PHONE: "010-0000-0000",          // 중개사 휴대폰 번호 (문자/전화 연결용)
+      GOOGLE_FORM_URL: "",             // (선택) 구글 폼 링크가 있다면 입력 시 버튼 표시
+      KAKAO_OPENCHAT_URL: ""           // (선택) 카카오톡 채널/오픈채팅 링크가 있다면 입력
+    };
+  </script>
+  <!-- =============================================================== -->
+
+  <!-- 상단 고정 헤더 -->
+  <header class="shrink-0 bg-white/95 backdrop-blur-md border-b border-sky-100 z-20">
+    <div class="max-w-xl mx-auto px-4 h-16 flex items-center justify-between gap-2">
+      <!-- 브랜드 로고 -->
+      <div class="flex items-center gap-2.5 min-w-0">
+        <div class="w-10 h-10 rounded-2xl bg-[#0284C7] flex items-center justify-center shrink-0 shadow-sm">
+          <svg class="w-5 h-5 text-white" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M11.47 3.84a.75.75 0 011.06 0l8.69 8.69a.75.75 0 101.06-1.06l-8.689-8.69a2.25 2.25 0 00-3.182 0l-8.69 8.69a.75.75 0 001.061 1.06l8.69-8.69z" />
+            <path d="M12 5.432l8.159 8.159c.03.03.06.058.091.086v6.198c0 1.035-.84 1.875-1.875 1.875H15a.75.75 0 01-.75-.75v-4.5a.75.75 0 00-.75-.75h-3a.75.75 0 00-.75.75V21a.75.75 0 01-.75.75H5.625a1.875 1.875 0 01-1.875-1.875v-6.198a2.29 2.29 0 00.091-.086L12 5.43z" />
+          </svg>
+        </div>
+        <div class="leading-tight truncate">
+          <div class="flex items-center gap-1.5">
+            <span class="text-base font-extrabold text-slate-900">와방</span>
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-bold">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>응답가능
+            </span>
+          </div>
+          <div class="text-[11px] font-medium text-sky-700 truncate">공인중개사 이하늘 · 자동 매물 접수 챗봇</div>
+        </div>
+      </div>
+
+      <!-- 우측 버튼 그룹 -->
+      <div class="flex items-center gap-1.5 shrink-0">
+        <button type="button" onclick="restartChat()"
+          class="inline-flex items-center gap-1 px-2.5 py-2 rounded-xl bg-sky-50 hover:bg-sky-100 text-sky-800 border border-sky-200 text-xs font-bold transition">
+          <i class="ph-bold ph-arrow-counter-clockwise text-sm"></i>
+          <span>다시하기</span>
+        </button>
+        <a id="headerPhoneBtn" href="tel:010-0000-0000"
+          class="inline-flex items-center gap-1 px-3 py-2 rounded-xl bg-[#0284C7] hover:bg-sky-700 text-white text-xs font-bold shadow-sm transition">
+          <i class="ph-fill ph-phone text-sm"></i>
+          <span>전화문의</span>
+        </a>
+      </div>
+    </div>
+
+    <!-- 진행률 표시 바 -->
+    <div class="max-w-xl mx-auto px-4 pb-2 bg-white/95">
+      <div class="flex items-center justify-between text-[11px] font-semibold text-slate-400 mb-1">
+        <span id="progressLabel">맞춤 매물 조건 접수 준비</span>
+        <span id="progressCount" class="text-[#0284C7] font-bold">0 / 12</span>
+      </div>
+      <div class="w-full h-1.5 bg-sky-100 rounded-full overflow-hidden">
+        <div id="progressBar" class="h-full bg-[#0284C7] rounded-full transition-all duration-300" style="width: 0%;"></div>
+      </div>
+    </div>
+  </header>
+
+  <!-- 중앙 채팅 대화 영역 -->
+  <main id="chatScrollArea" class="flex-1 overflow-y-auto px-4 py-5 space-y-4">
+    <div id="chatContainer" class="max-w-xl mx-auto space-y-4 pb-6">
+      <!-- 자바스크립트로 말풍선이 순서대로 추가됩니다 -->
+    </div>
+  </main>
+
+  <!-- 하단 빠른 선택 칩 & 텍스트 입력 바 -->
+  <footer id="inputArea" class="shrink-0 bg-white border-t border-sky-100 z-20 pb-safe">
+    <div class="max-w-xl mx-auto px-4 py-3 space-y-2.5">
+      <!-- 빠른 선택 칩 영역 -->
+      <div id="quickChipsContainer" class="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto no-scrollbar"></div>
+
+      <!-- 다중 선택 완료 버튼 (옵션 선택 단계에서만 노출) -->
+      <div id="multiSelectBar" class="hidden flex items-center justify-between bg-sky-50 px-3 py-2 rounded-xl border border-sky-200">
+        <span id="multiSelectCount" class="text-xs font-bold text-[#0284C7]">0개 선택됨</span>
+        <button type="button" onclick="confirmMultiSelect()"
+          class="px-3.5 py-1.5 rounded-lg bg-[#0284C7] text-white text-xs font-bold shadow-xs hover:bg-sky-700 transition">
+          선택 완료 <i class="ph-bold ph-check ml-0.5"></i>
+        </button>
+      </div>
+
+      <!-- 직접 입력 폼 -->
+      <form id="chatForm" onsubmit="handleFormSubmit(event)" class="flex items-center gap-2">
+        <button type="button" id="prevStepBtn" onclick="goPrevStep()" title="이전 질문으로"
+          class="hidden shrink-0 w-10 h-10 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition">
+          <i class="ph-bold ph-arrow-u-up-left text-base"></i>
+        </button>
+        <input id="userInput" type="text" autocomplete="off" placeholder="답변을 입력하거나 위 버튼을 눌러주세요..."
+          class="flex-1 px-4 py-2.5 rounded-2xl bg-sky-50/80 border border-sky-200 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#0284C7] focus:bg-white transition" />
+        <button type="submit"
+          class="shrink-0 w-10 h-10 rounded-2xl bg-[#0284C7] hover:bg-sky-700 active:scale-95 text-white flex items-center justify-center shadow-sm transition">
+          <i class="ph-fill ph-paper-plane-right text-base"></i>
+        </button>
+      </form>
+    </div>
+  </footer>
+
+  <!-- 토스트 알림 메시지 -->
+  <div id="toast" class="fixed top-20 left-1/2 -translate-x-1/2 z-50 hidden px-4 py-2.5 rounded-full bg-slate-900/90 text-white text-xs font-bold shadow-lg flex items-center gap-1.5">
+    <i class="ph-fill ph-check-circle text-emerald-400 text-base"></i>
+    <span id="toastText">복사되었습니다!</span>
+  </div>
+
+  <!-- 사장님용 0원 구글시트 자동연동 안내 모달 -->
+  <div id="ownerGuideModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <h3 class="text-base font-extrabold text-slate-900 flex items-center gap-1.5">
+          <i class="ph-fill ph-lightbulb text-amber-500 text-lg"></i>
+          <span>서버 없이 무료 접수 운영하는 팁</span>
+        </h3>
+        <button type="button" onclick="closeOwnerGuide()" class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-600">
+          <i class="ph-bold ph-x"></i>
+        </button>
+      </div>
+      <div class="text-xs text-slate-600 space-y-2.5 leading-relaxed">
+        <p>현재 챗봇은 <b>100% 무료 정적 페이지</b>로 동작하며, 손님이 작성을 마치면:</p>
+        <div class="p-3 rounded-2xl bg-sky-50 border border-sky-100 space-y-1.5">
+          <p><b>1. 문자(SMS) 바로 전송:</b> 손님 휴대폰 문자 앱이 열리면서 정리된 12개 항목이 자동으로 입력되어 사장님 번호로 바로 발송됩니다.</p>
+          <p><b>2. 한 번에 복사하기:</b> 카카오톡 채널이나 인스타그램 DM에 붙여넣기만 하면 바로 상담이 시작됩니다.</p>
+          <p><b>3. 구글 폼 연동 (선택):</b> 코드 맨 위 <code>CONFIG.GOOGLE_FORM_URL</code>에 구글 설문지 주소를 넣으시면 설문지 버튼도 함께 나타납니다.</p>
+        </div>
+      </div>
+      <button type="button" onclick="closeOwnerGuide()" class="w-full py-3 rounded-2xl bg-[#0284C7] text-white text-xs font-bold">
+        확인했습니다
+      </button>
+    </div>
+  </div>
+
+  <script>
+    // ================= 챗봇 질문 시나리오 (요청하신 11개 항목 + 연락처) =================
+    const STEPS = [
+      {
+        key: "structure",
+        label: "구조",
+        question: "먼저, 어떤 <b>구조(방 개수)</b>의 집을 찾고 계신가요? 🏠",
+        placeholder: "예: 원룸, 투룸, 복층 오피스텔 등 직접 입력",
+        chips: ["원룸", "투룸", "쓰리룸", "오피스텔", "아파트", "상가"]
+      },
+      {
+        key: "moveInDate",
+        label: "입주예정일",
+        question: "희망하시는 <b>입주예정일</b>은 언제쯤인가요? 📅",
+        placeholder: "예: 12월 중순, 즉시 입주 등 직접 입력",
+        chips: ["즉시 입주", "1개월 이내", "2~3개월 후", "날짜 협의 가능"]
+      },
+      {
+        key: "deposit",
+        label: "보증금",
+        question: "생각해 두신 <b>보증금</b> 예산은 어느 정도인가요? 💰",
+        placeholder: "예: 2,000만원, 5,000만원 등 직접 입력",
+        chips: ["500만원", "1,000만원", "3,000만원", "5,000만원", "1억 이상"]
+      },
+      {
+        key: "monthlyRent",
+        label: "월세",
+        question: "희망하시는 <b>월세(또는 전세·매매 예산)</b> 범위를 알려주세요!",
+        placeholder: "예: 월세 60만원 이하, 전세 2억대 등",
+        chips: ["전세/매매 희망", "50만원 이하", "50~80만원", "80~120만원", "120만원 이상"]
+      },
+      {
+        key: "adminFee",
+        label: "관리비(포함or별도여부)",
+        question: "<b>관리비(포함 또는 별도 여부)</b>에 대해 선호하시는 조건이 있나요?",
+        placeholder: "예: 관리비 포함 70 이하, 별도 10만 이하 등",
+        chips: ["관리비 포함 희망", "별도 무관 (10만 이하)", "상관없음"]
+      },
+      {
+        key: "location",
+        label: "찾으시는위치",
+        question: "<b>찾으시는 위치(지역/역세권)</b>를 알려주세요! 📍",
+        placeholder: "예: 역삼역 도보 10분 이내, 수지구청역 인근 등",
+        chips: ["지하철 역세권 도보 10분 이내", "조용한 주택가/공원 인근", "직장·학교 근처 (지역 직접입력)"]
+      },
+      {
+        key: "parking",
+        label: "주차여부",
+        question: "<b>주차 여부</b>와 차량 종류(승용 or SUV)를 알려주세요! 🚗",
+        placeholder: "예: 주차 1대 필수 (SUV), 주차 불필요 등",
+        chips: ["주차 불필요", "필요 (승용차)", "필요 (SUV/대형)", "경차"]
+      },
+      {
+        key: "pet",
+        label: "동물여부",
+        question: "함께 거주할 <b>반려동물 여부</b>를 알려주세요! 🐾",
+        placeholder: "예: 소형견 1마리, 고양이 2마리, 없음 등",
+        chips: ["없음", "강아지 1마리", "고양이 1마리", "기타 / 다견·다묘"]
+      },
+      {
+        key: "options",
+        label: "원하시는 옵션",
+        question: "<b>원하시는 옵션</b>을 모두 골라주시거나 직접 적어주세요! ✨\n<span class='text-xs text-slate-400 font-normal'>(여러 개 선택 후 '선택 완료'를 눌러주세요)</span>",
+        placeholder: "추가로 원하시는 옵션을 직접 입력하셔도 됩니다",
+        multiSelect: true,
+        chips: ["풀옵션(세탁기/냉장고/에어컨)", "건조기", "엘리베이터", "베란다/테라스", "보안/CCTV", "신축급", "특이사항 없음"]
+      },
+      {
+        key: "priority",
+        label: "집구하실때 중요시보는부분",
+        question: "<b>집 구하실 때 가장 중요시 보는 부분</b>은 무엇인가요? 👀",
+        placeholder: "예: 채광, 수압, 층간소음, 가성비 등",
+        chips: ["채광 / 남향", "조용한 주변환경", "역세권 / 교통편의", "수압 / 깔끔한 컨디션", "가성비 (금액)"]
+      },
+      {
+        key: "viewingDate",
+        label: "방 보실 수 있는 날짜",
+        question: "실제로 <b>방 보실 수 있는 날짜와 시간대</b>는 언제인가요? 🗓️",
+        placeholder: "예: 이번 주 토요일 오후 2시, 평일 저녁 7시 이후",
+        chips: ["이번 주 평일", "이번 주 주말", "언제든 가능 (시간 협의)"]
+      },
+      {
+        key: "contact",
+        label: "연락처",
+        question: "마지막으로 맞춤 매물 리스트를 받아보실 <b>성함 / 연락처</b>를 남겨주세요! 📱",
+        placeholder: "예: 홍길동 / 010-1234-5678",
+        chips: ["문자로 바로 보낼게요 (생략)"]
+      }
+    ];
+
+    // ================= 상태 관리 =================
+    let currentStepIdx = -1; // -1: 인트로 환영 인사
+    let answers = {};
+    let selectedMultiOptions = [];
+    let isCompleted = false;
+
+    document.addEventListener("DOMContentLoaded", () => {
+      initHeaderPhone();
+      startGreeting();
+    });
+
+    function initHeaderPhone() {
+      const phone = (CONFIG.PHONE || "").trim();
+      const btn = document.getElementById("headerPhoneBtn");
+      if (phone) {
+        btn.href = `tel:${phone}`;
+      } else {
+        btn.classList.add("hidden");
+      }
+    }
+
+    function scrollToBottom() {
+      const area = document.getElementById("chatScrollArea");
+      setTimeout(() => {
+        area.scrollTo({ top: area.scrollHeight, behavior: "smooth" });
+      }, 60);
+    }
+
+    function updateProgress() {
+      const total = STEPS.length;
+      const done = isCompleted ? total : Math.max(0, currentStepIdx);
+      const pct = Math.round((done / total) * 100);
+
+      document.getElementById("progressBar").style.width = `${pct}%`;
+      document.getElementById("progressCount").textContent = `${done} / ${total}`;
+      document.getElementById("progressLabel").textContent = isCompleted
+        ? "모든 조건 접수 완료!"
+        : currentStepIdx < 0
+          ? "맞춤 매물 조건 접수 준비"
+          : `${STEPS[currentStepIdx].label} 입력 중`;
+
+      // 이전 단계 버튼 표시 여부
+      const prevBtn = document.getElementById("prevStepBtn");
+      if (currentStepIdx > 0 && !isCompleted) {
+        prevBtn.classList.remove("hidden");
+      } else {
+        prevBtn.classList.add("hidden");
+      }
+    }
+
+    // ================= 말풍선 렌더링 =================
+    function appendBotMessage(htmlContent, delay = 350) {
+      return new Promise((resolve) => {
+        const container = document.getElementById("chatContainer");
+
+        // 타이핑 인디케이터 표시
+        const typingId = `typing_${Date.now()}`;
+        const typingEl = document.createElement("div");
+        typingEl.id = typingId;
+        typingEl.className = "flex items-end gap-2.5 msg-anim";
+        typingEl.innerHTML = `
+          <div class="w-8 h-8 rounded-2xl bg-[#0284C7] text-white flex items-center justify-center shrink-0 shadow-xs text-sm">
+            <i class="ph-fill ph-paw-print"></i>
+          </div>
+          <div class="bg-white border border-sky-100 px-4 py-3 rounded-2xl rounded-bl-xs shadow-xs flex items-center gap-1">
+            <span class="w-1.5 h-1.5 rounded-full bg-sky-400 typing-dot"></span>
+            <span class="w-1.5 h-1.5 rounded-full bg-sky-400 typing-dot"></span>
+            <span class="w-1.5 h-1.5 rounded-full bg-sky-400 typing-dot"></span>
+          </div>
+        `;
+        container.appendChild(typingEl);
+        scrollToBottom();
+
+        setTimeout(() => {
+          const t = document.getElementById(typingId);
+          if (t) t.remove();
+
+          const msgEl = document.createElement("div");
+          msgEl.className = "flex items-start gap-2.5 msg-anim";
+          msgEl.innerHTML = `
+            <div class="w-8 h-8 rounded-2xl bg-[#0284C7] text-white flex items-center justify-center shrink-0 shadow-xs mt-0.5 text-sm">
+              <i class="ph-fill ph-paw-print"></i>
+            </div>
+            <div class="max-w-[84%] space-y-1">
+              <div class="text-[11px] font-bold text-slate-500 ml-1">와방 매니저</div>
+              <div class="bg-white border border-sky-100 text-slate-800 text-sm px-4 py-3 rounded-2xl rounded-tl-xs shadow-xs leading-relaxed whitespace-pre-line">
+                ${htmlContent}
+              </div>
+            </div>
+          `;
+          container.appendChild(msgEl);
+          scrollToBottom();
+          resolve();
+        }, delay);
+      });
+    }
+
+    function appendUserMessage(text, stepIdxToEdit = null) {
+      const container = document.getElementById("chatContainer");
+      const msgEl = document.createElement("div");
+      msgEl.className = "flex justify-end msg-anim";
+      msgEl.innerHTML = `
+        <div class="max-w-[82%] flex flex-col items-end gap-1">
+          <div class="bg-[#0284C7] text-white text-sm font-medium px-4 py-2.5 rounded-2xl rounded-tr-xs shadow-xs leading-relaxed break-keep">
+            ${escapeHtml(text)}
+          </div>
+          ${stepIdxToEdit !== null ? `
+            <button type="button" onclick="editFromStep(${stepIdxToEdit})" class="text-[11px] text-slate-400 hover:text-[#0284C7] underline pr-1">
+              수정하기
+            </button>
+          ` : ""}
+        </div>
+      `;
+      container.appendChild(msgEl);
+      scrollToBottom();
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    // ================= 챗봇 대화 흐름 제어 =================
+    async function startGreeting() {
+      currentStepIdx = -1;
+      answers = {};
+      selectedMultiOptions = [];
+      isCompleted = false;
+      document.getElementById("chatContainer").innerHTML = "";
+      document.getElementById("inputArea").classList.remove("hidden");
+      updateProgress();
+
+      await appendBotMessage(
+        "안녕하세요! <b>와방 · 공인중개사 이하늘</b> 자동 매물 접수 챗봇입니다. 🏡\n\n원하시는 집 조건을 1분 만에 간단히 알려주시면, 조건에 딱 맞는 실매물을 찾아 빠르게 안내해 드릴게요!",
+        300
+      );
+
+      renderQuickChips(["네, 시작할게요! 🐾"], false);
+      document.getElementById("userInput").placeholder = "'네, 시작할게요!' 버튼을 눌러주세요";
+    }
+
+    function restartChat() {
+      startGreeting();
+    }
+
+    async function goToStep(idx) {
+      currentStepIdx = idx;
+      selectedMultiOptions = [];
+      updateProgress();
+
+      if (idx >= STEPS.length) {
+        await finishConversation();
+        return;
+      }
+
+      const step = STEPS[idx];
+      document.getElementById("userInput").value = "";
+      document.getElementById("userInput").placeholder = step.placeholder || "답변을 입력해 주세요...";
+      renderQuickChips(step.chips || [], !!step.multiSelect);
+
+      await appendBotMessage(step.question, 320);
+    }
+
+    function goPrevStep() {
+      if (currentStepIdx > 0 && !isCompleted) {
+        appendUserMessage("이전 질문으로 돌아갈게요");
+        goToStep(currentStepIdx - 1);
+      }
+    }
+
+    function editFromStep(stepIdx) {
+      isCompleted = false;
+      document.getElementById("inputArea").classList.remove("hidden");
+      appendUserMessage(`'${STEPS[stepIdx].label}' 항목을 다시 입력할게요`);
+      goToStep(stepIdx);
+    }
+
+    // ================= 빠른 선택 칩 & 입력 처리 =================
+    function renderQuickChips(chips, isMulti) {
+      const wrap = document.getElementById("quickChipsContainer");
+      const multiBar = document.getElementById("multiSelectBar");
+
+      if (!isMulti) {
+        multiBar.classList.add("hidden");
+        wrap.innerHTML = chips.map(chip => `
+          <button type="button" onclick="handleChipClick('${chip.replace(/'/g, "\\'")}')"
+            class="px-3.5 py-2 rounded-full bg-sky-50 hover:bg-[#0284C7] text-[#0284C7] hover:text-white border border-sky-200 text-xs font-bold transition shrink-0">
+            ${chip}
+          </button>
+        `).join("");
+      } else {
+        multiBar.classList.remove("hidden");
+        updateMultiBarText();
+        wrap.innerHTML = chips.map(chip => {
+          const active = selectedMultiOptions.includes(chip);
+          return `
+            <button type="button" onclick="toggleMultiChip('${chip.replace(/'/g, "\\'")}')"
+              class="px-3.5 py-2 rounded-full text-xs font-bold border transition shrink-0 ${
+                active
+                  ? "bg-[#0284C7] text-white border-[#0284C7] shadow-xs"
+                  : "bg-sky-50 text-[#0284C7] border-sky-200 hover:bg-sky-100"
+              }">
+              ${active ? "✓ " : "+ "}${chip}
+            </button>
+          `;
+        }).join("");
+      }
+    }
+
+    function toggleMultiChip(chip) {
+      if (chip === "특이사항 없음") {
+        selectedMultiOptions = ["특이사항 없음"];
+      } else {
+        selectedMultiOptions = selectedMultiOptions.filter(c => c !== "특이사항 없음");
+        const idx = selectedMultiOptions.indexOf(chip);
+        if (idx >= 0) selectedMultiOptions.splice(idx, 1);
+        else selectedMultiOptions.push(chip);
+      }
+      const step = STEPS[currentStepIdx];
+      renderQuickChips(step.chips || [], true);
+    }
+
+    function updateMultiBarText() {
+      document.getElementById("multiSelectCount").textContent = `${selectedMultiOptions.length}개 선택됨`;
+    }
+
+    function confirmMultiSelect() {
+      const customVal = document.getElementById("userInput").value.trim();
+      const combined = [...selectedMultiOptions];
+      if (customVal) combined.push(customVal);
+
+      const finalAnswer = combined.length > 0 ? combined.join(", ") : "특이사항 없음";
+      submitAnswer(finalAnswer);
+    }
+
+    function handleChipClick(value) {
+      if (currentStepIdx === -1) {
+        appendUserMessage(value);
+        goToStep(0);
+        return;
+      }
+      submitAnswer(value);
+    }
+
+    function handleFormSubmit(e) {
+      e.preventDefault();
+      const inputEl = document.getElementById("userInput");
+      const val = inputEl.value.trim();
+
+      if (currentStepIdx === -1) {
+        appendUserMessage(val || "네, 시작할게요! 🐾");
+        inputEl.value = "";
+        goToStep(0);
+        return;
+      }
+
+      const step = STEPS[currentStepIdx];
+      if (step && step.multiSelect) {
+        confirmMultiSelect();
+        return;
+      }
+
+      if (!val) return;
+      submitAnswer(val);
+    }
+
+    function submitAnswer(value) {
+      const step = STEPS[currentStepIdx];
+      answers[step.key] = value;
+      document.getElementById("userInput").value = "";
+      appendUserMessage(value, currentStepIdx);
+      goToStep(currentStepIdx + 1);
+    }
+
+    // ================= 완료 요약 카드 생성 및 전송 액션 =================
+    function buildFormattedSummaryText() {
+      return [
+        "[와방 · 맞춤 매물 문의 접수]",
+        `•구조: ${answers.structure || "-"}`,
+        `•입주예정일: ${answers.moveInDate || "-"}`,
+        `•보증금: ${answers.deposit || "-"}`,
+        `•월세: ${answers.monthlyRent || "-"}`,
+        `•관리비(포함or별도여부): ${answers.adminFee || "-"}`,
+        `•찾으시는위치: ${answers.location || "-"}`,
+        `•주차여부: ${answers.parking || "-"}`,
+        `•동물여부: ${answers.pet || "-"}`,
+        `•원하시는 옵션: ${answers.options || "-"}`,
+        `•집구하실때 중요시보는부분: ${answers.priority || "-"}`,
+        `•방 보실 수 있는 날짜: ${answers.viewingDate || "-"}`,
+        `•연락처: ${answers.contact || "-"}`
+      ].join("\n");
+    }
+
+    async function finishConversation() {
+      isCompleted = true;
+      updateProgress();
+      document.getElementById("inputArea").classList.add("hidden");
+
+      await appendBotMessage(
+        "감사합니다! 알려주신 희망 조건이 모두 정리되었습니다. 🎉\n아래 버튼을 눌러 <b>문자(SMS)로 바로 전송</b>하시거나, <b>내용을 복사</b>해 카카오톡·DM으로 보내주시면 바로 확인 후 연락드릴게요!",
+        400
+      );
+
+      const summaryText = buildFormattedSummaryText();
+      const phone = (CONFIG.PHONE || "").trim();
+      const smsSeparator = /iPhone|iPad|iPod/i.test(navigator.userAgent) ? "&" : "?";
+      const smsHref = `sms:${phone}${smsSeparator}body=${encodeURIComponent(summaryText)}`;
+
+      const container = document.getElementById("chatContainer");
+      const cardEl = document.createElement("div");
+      cardEl.className = "msg-anim bg-white rounded-3xl border border-sky-200 shadow-md overflow-hidden";
+      cardEl.innerHTML = `
+        <div class="bg-gradient-to-r from-[#0284C7] to-sky-500 px-5 py-3.5 text-white flex items-center justify-between">
+          <div class="flex items-center gap-2 font-extrabold text-sm">
+            <i class="ph-fill ph-clipboard-text text-lg"></i>
+            <span>접수된 맞춤 매물 희망 조건</span>
+          </div>
+          <button type="button" onclick="restartChat()" class="text-[11px] bg-white/20 hover:bg-white/30 px-2.5 py-1 rounded-full font-bold">
+            처음부터 다시
+          </button>
+        </div>
+
+        <div class="p-5 space-y-3">
+          <pre id="summaryPre" class="text-xs sm:text-sm text-slate-700 bg-sky-50/70 p-4 rounded-2xl border border-sky-100 whitespace-pre-wrap font-sans leading-relaxed select-all">${escapeHtml(summaryText)}</pre>
+
+          <div class="space-y-2 pt-1">
+            <!-- 1. 문자 바로 전송 -->
+            ${phone ? `
+              <a href="${smsHref}"
+                class="w-full py-3.5 rounded-2xl bg-[#0284C7] hover:bg-sky-700 active:scale-[0.99] text-white font-extrabold text-sm shadow-sm flex items-center justify-center gap-2 transition">
+                <i class="ph-fill ph-chat-circle-dots text-lg"></i>
+                <span>💬 문자(SMS)로 바로 전송하기</span>
+              </a>
+            ` : ""}
+
+            <!-- 2. 한 번에 복사하기 -->
+            <button type="button" onclick="copySummary()"
+              class="w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white font-extrabold text-sm shadow-sm flex items-center justify-center gap-2 transition">
+              <i class="ph-fill ph-copy text-lg"></i>
+              <span>📋 문의내용 한 번에 복사하기</span>
+            </button>
+
+            <!-- 3. 카카오톡 채널 연결 (설정 시 표시) -->
+            ${CONFIG.KAKAO_OPENCHAT_URL ? `
+              <a href="${CONFIG.KAKAO_OPENCHAT_URL}" target="_blank" rel="noopener noreferrer"
+                class="w-full py-3 rounded-2xl bg-[#FEE500] hover:brightness-95 text-[#191919] font-extrabold text-xs flex items-center justify-center gap-1.5 transition">
+                <i class="ph-fill ph-chat-teardrop-text text-base"></i>
+                <span>카카오톡 채널 열어서 붙여넣기</span>
+              </a>
+            ` : ""}
+
+            <!-- 4. 구글 폼 연결 (설정 시 표시) -->
+            ${CONFIG.GOOGLE_FORM_URL ? `
+              <a href="${CONFIG.GOOGLE_FORM_URL}" target="_blank" rel="noopener noreferrer"
+                class="w-full py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center gap-1.5 transition">
+                <i class="ph-fill ph-google-logo text-base text-[#0284C7]"></i>
+                <span>구글 설문지로도 접수하기</span>
+              </a>
+            ` : ""}
+
+            <!-- 5. 전화 상담 -->
+            ${phone ? `
+              <a href="tel:${phone}"
+                class="w-full py-3 rounded-2xl bg-sky-50 hover:bg-sky-100 text-[#0284C7] border border-sky-200 font-bold text-xs flex items-center justify-center gap-1.5 transition">
+                <i class="ph-fill ph-phone text-base"></i>
+                <span>📞 전화로 바로 상담하기 (${phone})</span>
+              </a>
+            ` : ""}
+          </div>
+
+          <div class="pt-2 text-center">
+            <button type="button" onclick="openOwnerGuide()" class="text-[11px] text-slate-400 hover:text-slate-600 underline">
+              사장님 안내: 무료 운영 및 연동 방법 보기
+            </button>
+          </div>
+        </div>
+      `;
+
+      container.appendChild(cardEl);
+      scrollToBottom();
+    }
+
+    function copySummary() {
+      const text = buildFormattedSummaryText();
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
+      textarea.select();
+      try {
+        document.execCommand("copy");
+        showToast("문의 내용이 복사되었습니다! 카톡이나 DM에 붙여넣으세요.");
+      } catch (err) {
+        showToast("복사에 실패했습니다. 위 박스 글자를 길게 눌러 복사해 주세요.");
+      }
+      document.body.removeChild(textarea);
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById("toast");
+      document.getElementById("toastText").textContent = msg;
+      toast.classList.remove("hidden");
+      clearTimeout(window.__toastTimer);
+      window.__toastTimer = setTimeout(() => {
+        toast.classList.add("hidden");
+      }, 3000);
+    }
+
+    function openOwnerGuide() {
+      const m = document.getElementById("ownerGuideModal");
+      m.classList.remove("hidden");
+      m.classList.add("flex");
+    }
+
+    function closeOwnerGuide() {
+      const m = document.getElementById("ownerGuideModal");
+      m.classList.add("hidden");
+      m.classList.remove("flex");
+    }
+  </script>
+</body>
+</html>
+```
+
+### 주요 기능 요약
+1. **1:1 대화형 챗봇 흐름**: 요청하신 **구조, 입주예정일, 보증금, 월세, 관리비(포함or별도여부), 찾으시는위치, 주차여부(승용orSUV), 동물여부, 원하시는 옵션(다중 선택 지원), 집구하실때 중요시보는부분, 방 보실 수 있는 날짜**와 연락처를 빠른 선택 버튼과 직접 입력으로 1분 만에 수집합니다.
+2. **서버 비용 0원 접수 방식**: 작성이 끝나면 손님 화면에 정리된 요약 카드가 생성되며, **[💬 문자(SMS)로 바로 전송하기]** 버튼을 누르면 손님 스마트폰 문자 앱에 전체 내용이 자동 입력되어 사장님 번호(`CONFIG.PHONE`)로 즉시 발송됩니다. 또한 **[📋 문의내용 한 번에 복사하기]**로 카카오톡·인스타 DM에 바로 붙여넣을 수 있습니다.
